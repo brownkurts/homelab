@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: PVEMOMS # change me
+  name: pvemoms # change me
 ---
 kind: Service
 apiVersion: v1
 metadata:
-  name: PVEMOMS # change me
-  namespace: PVEMOMS # change me
+  name: pvemoms # change me
+  namespace: pvemoms # change me
 spec:
   type: ExternalName
   ports:
@@ -19,23 +19,23 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: PVEMOMS # change me
-  namespace: PVEMOMS # change me
+  name: pvemoms # change me
+  namespace: pvemoms # change me
   annotations: 
     kubernetes.io/ingress.class: traefik-external
 spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`www.PVEMOMS.kbtech.org`) # change me
+    - match: Host(`www.pvemoms.kbtech.org`) # change me
       kind: Rule
       services:
-        - name: PVEMOMS # change me
+        - name: pvemoms # change me
           port: 8006 # change me
-    - match: Host(`PVEMOMS.kbtech.org`) # change me
+    - match: Host(`pvemoms.kbtech.org`) # change me
       kind: Rule
       services:
-        - name: PVEMOMS # change me
+        - name: pvemoms # change me
           port: 8006 # change me
       middlewares:
         - name: default-headers
@@ -46,7 +46,7 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: default-headers
-  namespace: PVEMOMS # change me
+  namespace: pvemoms # change me
 spec:
   headers:
     browserXssFilter: true
