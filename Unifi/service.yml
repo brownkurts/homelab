@@ -31,7 +31,7 @@ spec:
     app: unifi-controller
   externalTrafficPolicy: Local
   type: LoadBalancer
-  loadBalancerIP: 192.168.201.15
+  loadBalancerIP: 192.168.201.64
 ---
 kind: Service
 apiVersion: v1
@@ -50,4 +50,4 @@ spec:
     name: unifi-controller
     namespace: unifi
   type: LoadBalancer
-  loadBalancerIP: 192.168.201.15
+  loadBalancerIP: 192.168.201.64
