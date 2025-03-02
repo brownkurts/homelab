@@ -1,0 +1,18 @@
+# apiVersion: traefik.io/v1alpha1
+# kind: IngressRoute
+# metadata:
+#   name: orbital-sync
+#   namespace: orbital-sync
+#   annotations: 
+#     kubernetes.io/ingress.class: traefik-external
+# spec:
+#   entryPoints:
+#     - websecure
+#   routes:
+#     - match: Host(`orbital.kbtech.org`)
+#       kind: Rule
+#       services:
+#         - name: orbital-sync
+#           port: 80
+#   tls:
+#     secretName: kbtech-tls # change to your cert name
