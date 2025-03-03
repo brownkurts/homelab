@@ -1,2 +1,2 @@
 # homelab
-Home Lab K3S
+Home Lab rke2
