@@ -23,8 +23,8 @@ spec:
       labels:
         app: code-server
     spec:
-      # nodeSelector:
-      #   worker: "true"
+      nodeSelector:
+        worker: "true"
       containers:
       - image: codercom/code-server:latest
         imagePullPolicy: Always
