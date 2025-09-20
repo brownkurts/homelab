@@ -27,7 +27,7 @@ spec:
       nodeSelector:
         worker: "true"
       containers:
-      - image: ghcr.io/ajnart/homarr:latest
+      - image: ghcr.io/homarr-labs/homarr:latest
         imagePullPolicy: Always
         name: homarr-server
         volumeMounts:
