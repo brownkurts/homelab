@@ -10,7 +10,7 @@ metadata:
   namespace: pfsensehome
 spec:
   ports:
-    - name: https
+    - name: http
       port: 443
       targetPort: 443
 ---
@@ -23,7 +23,7 @@ subsets:
   - addresses:
       - ip: 192.168.2.254   # pfSense IP
     ports:
-      - name: https
+      - name: http
         port: 443
 ---
 apiVersion: traefik.io/v1alpha1
@@ -41,7 +41,7 @@ spec:
     stsSeconds: 15552000
     customFrameOptionsValue: SAMEORIGIN
     customRequestHeaders:
-      X-Forwarded-Proto: https
+      X-Forwarded-Proto: http
 ---
 # If pfSense uses a self-signed cert, uncomment these and reference the serversTransport below
 # apiVersion: traefik.io/v1alpha1
