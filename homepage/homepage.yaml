@@ -9,20 +9,51 @@ metadata:
   name: homepage-config
   namespace: homepage-server
 data:
-  # Minimal configs — expand later as you like
   settings.yaml: |
-    title: KBTech Dashboard
+    title: StarGate Command
     theme: dark
+    # Background via full URL (easiest). Replace with your own Stargate ship image:
+    background:
+      image: https://images.unsplash.com/photo-1502790671504-542ad42d5189?auto=format&fit=crop&w=2560&q=80
+      blur: md
+      brightness: 75
+      opacity: 60
     layout:
       - Network
+      - Infrastructure
+      - Media
+      - Cameras
       - Tools
     quicklaunch:
       searchDescriptions: true
+
   services.yaml: |
     - Network:
         - pfSense:
             href: https://pfsensehome.kbtech.org
-            icon: pfSense.png
+            icon: pfsense
+
+    - Infrastructure:
+        - Proxmox (HQ):
+            href: https://proxmox.kbtech.org
+            icon: proxmox
+        - Proxmox (NOC):
+            href: https://proxmox-noc.kbtech.org
+            icon: proxmox
+        - Proxmox (Moms):
+            href: https://pvemoms.kbtech.org
+            icon: proxmox
+
+    - Media:
+        - Sonarr:
+            href: https://sonarr.kbtech.org
+            icon: sonarr
+
+    - Cameras:
+        - Blue Iris:
+            href: https://blue.kbtech.org
+            icon: blue-iris
+
   widgets.yaml: |
     - resources:
         cpu: true
@@ -33,10 +64,6 @@ data:
         format:
           timeStyle: short
           dateStyle: long
-  # Add more later if you want:
-  # bookmarks.yaml: |
-  #   - Homelab:
-  #       - ChatGPT: https://chat.openai.com
 ---
 apiVersion: v1
 kind: Service
@@ -68,13 +95,12 @@ spec:
       labels:
         app: homepage
     spec:
-      # Homepage runs as root by default; that’s fine here. :contentReference[oaicite:1]{index=1}
       containers:
         - name: homepage
           image: ghcr.io/gethomepage/homepage:v0.9.12
           imagePullPolicy: IfNotPresent
           env:
-            # REQUIRED: include your public host (comma-separated if multiple). :contentReference[oaicite:2]{index=2}
+            # Required for external hostnames
             - name: HOMEPAGE_ALLOWED_HOSTS
               value: homepage.kbtech.org,www.homepage.kbtech.org
             - name: TZ
@@ -84,7 +110,7 @@ spec:
               containerPort: 3000
           volumeMounts:
             - name: homepage-config
-              mountPath: /app/config          # Homepage reads configs from here. :contentReference[oaicite:3]{index=3}
+              mountPath: /app/config
             - name: logs
               mountPath: /app/config/logs
           readinessProbe:
@@ -102,7 +128,6 @@ spec:
         - name: logs
           emptyDir: {}
 ---
-# Traefik (CRD) exposure with your cert
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -119,4 +144,4 @@ spec:
         - name: homepage
           port: 3000
   tls:
-    secretName: kbtech-tls   # must exist in the *homepage-server* namespace
+    secretName: kbtech-tls
