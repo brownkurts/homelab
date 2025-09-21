@@ -9,27 +9,29 @@ metadata:
   name: pfsensehome
   namespace: pfsensehome
 spec:
-  type: ExternalName
+  type: ClusterIP
   ports:
     - name: https
       port: 443
       targetPort: 443
-  # no selector – using manual Endpoints
+  # no selector on purpose – we define Endpoints via EndpointSlice
 ---
-apiVersion: v1
-kind: Endpoints
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
 metadata:
-  name: pfsensehome
+  name: pfsensehome-1
   namespace: pfsensehome
-subsets:
-  - addresses:
-      - ip: 192.168.2.254
-    ports:
-      - name: https
-        port: 443
-        protocol: TCP
+  labels:
+    kubernetes.io/service-name: pfsensehome
+addressType: IPv4
+ports:
+  - name: https
+    port: 443
+    protocol: TCP
+endpoints:
+  - addresses: ["192.168.2.254"]
+    conditions: { ready: true }
 ---
-# Option A (easy): trust pfSense cert by skipping verification
 apiVersion: traefik.io/v1alpha1
 kind: ServersTransport
 metadata:
@@ -37,19 +39,6 @@ metadata:
   namespace: pfsensehome
 spec:
   insecureSkipVerify: true
-
-# Option B (preferred): trust pfSense CA instead of skipping verify
-# 1) create a secret with your pfSense CA PEM in this namespace:
-#    kubectl -n pfsensehome create secret generic pfsense-ca --from-file=ca.crt=/path/to/pfsense-ca.pem
-# 2) then use this ServersTransport and reference it in the IngressRoute:
-# apiVersion: traefik.io/v1alpha1
-# kind: ServersTransport
-# metadata:
-#   name: pfsensehome-ca
-#   namespace: pfsensehome
-# spec:
-#   rootCAsSecrets:
-#     - pfsense-ca
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
@@ -76,8 +65,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik-external
 spec:
-  entryPoints:
-    - websecure
+  entryPoints: [websecure]
   routes:
     - match: Host(`pfsensehome.kbtech.org`) || Host(`www.pfsensehome.kbtech.org`)
       kind: Rule
@@ -87,7 +75,7 @@ spec:
         - name: pfsensehome
           port: 443
           scheme: https
-          serversTransport: pfsensehome-insecure   # or: pfsensehome-ca
+          serversTransport: pfsensehome-insecure
           passHostHeader: true
   tls:
-    secretName: kbtech-tls   # must exist in namespace pfsensehome
+    secretName: kbtech-tls
