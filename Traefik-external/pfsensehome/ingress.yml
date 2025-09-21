@@ -1,50 +1,52 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: pfsensehome
+  name: pfsensehome # change me
 ---
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
-  name: pfsensehome
-  namespace: pfsensehome
+  name: pfsensehome # change me
+  namespace: pfsensehome # change me
 spec:
-  type: ClusterIP
+  type: ExternalName
   ports:
-    - name: https
-      port: 443
-      targetPort: 443
-  # no selector on purpose – we define Endpoints via EndpointSlice
----
-apiVersion: discovery.k8s.io/v1
-kind: EndpointSlice
-metadata:
-  name: pfsensehome-1
-  namespace: pfsensehome
-  labels:
-    kubernetes.io/service-name: pfsensehome
-addressType: IPv4
-ports:
-  - name: https
-    port: 443
-    protocol: TCP
-endpoints:
-  - addresses: ["192.168.2.254"]
-    conditions: { ready: true }
+    - name: https # change me
+      port: 443 # change me
+      targetPort: 443 # change me
+  externalName: 192.168.201.1 # change me
 ---
 apiVersion: traefik.io/v1alpha1
-kind: ServersTransport
+kind: IngressRoute
 metadata:
-  name: pfsensehome-insecure
-  namespace: pfsensehome
+  name: pfsensehome # change me
+  namespace: pfsensehome # change me
+  annotations: 
+    kubernetes.io/ingress.class: traefik-external
 spec:
-  insecureSkipVerify: true
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`www.pfsensehome.kbtech.org`) # change me
+      kind: Rule
+      services:
+        - name: pfsensehome # change me
+          port: 443 # change me
+    - match: Host(`pfsensehome.kbtech.org`) # change me
+      kind: Rule
+      services:
+        - name: pfsensehome # change me
+          port: 443 # change me
+      middlewares:
+        - name: default-headers
+  tls:
+    secretName: kbtech-tls # change me
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: default-headers
-  namespace: pfsensehome
+  namespace: pfsensehome # change me
 spec:
   headers:
     browserXssFilter: true
@@ -55,27 +57,4 @@ spec:
     stsSeconds: 15552000
     customFrameOptionsValue: SAMEORIGIN
     customRequestHeaders:
-      X-Forwarded-Proto: "https"
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: pfsensehome
-  namespace: pfsensehome
-  annotations:
-    kubernetes.io/ingress.class: traefik-external
-spec:
-  entryPoints: [websecure]
-  routes:
-    - match: Host(`pfsensehome.kbtech.org`) || Host(`www.pfsensehome.kbtech.org`)
-      kind: Rule
-      middlewares:
-        - name: default-headers
-      services:
-        - name: pfsensehome
-          port: 443
-          scheme: https
-          serversTransport: pfsensehome-insecure
-          passHostHeader: true
-  tls:
-    secretName: kbtech-tls
+      X-Forwarded-Proto: https
