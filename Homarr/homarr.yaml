@@ -80,3 +80,18 @@ spec:
         - name: homarr-content
           persistentVolumeClaim:
             claimName: homarr-claim
+env:
+  - name: TZ
+    value: America/Chicago
+  - name: NEXTAUTH_URL
+    value: https://homarr.kbtech.org
+  - name: REDIS_IS_EXTERNAL
+    value: "true"
+  - name: REDIS_HOST
+    value: redis
+  - name: REDIS_PORT
+    value: "6379"
+# also include your required encryption key (if not already):
+envFrom:
+  - secretRef:
+      name: homarr-secrets
