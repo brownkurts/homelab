@@ -1,4 +1,9 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: homepage-server
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: homepage-config
@@ -8,7 +13,7 @@ data:
     title: StarGate Command
     theme: dark
     background:
-      image: /images/stargate.jpg   # served locally by the container
+      image: /images/stargate.jpg   # served locally (see initContainer below)
       blur: md
       brightness: 75
       opacity: 60
@@ -16,6 +21,7 @@ data:
       - Network
       - Infrastructure
       - Media
+      - Home
       - Cameras
       - Tools
     quicklaunch:
@@ -45,7 +51,7 @@ data:
             icon: unraid
         - Tactical RMM:
             href: https://rmm.kbtech.org
-            # Custom icon URL fallback in case there's no built-in slug:
+            # fallback to direct icon URL if the slug isn't found
             icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/tacticalrmm.png
 
     - Media:
@@ -58,11 +64,8 @@ data:
         - Overseerr:
             href: https://request.kbtech.org
             icon: overseerr
-        - Plex:
-            href: https://app.plex.tv/desktop/#!/
-            icon: plex
 
-    - Smart Home:
+    - Home:
         - Home Assistant:
             href: https://homeassistant.kbtech.org
             icon: home-assistant
@@ -82,3 +85,102 @@ data:
         format:
           timeStyle: short
           dateStyle: long
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage
+  namespace: homepage-server
+spec:
+  selector:
+    app: homepage
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: homepage-server
+  labels:
+    app: homepage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homepage
+  template:
+    metadata:
+      labels:
+        app: homepage
+    spec:
+      # Download the wallpaper so we can serve it locally (avoids hotlink blocking)
+      initContainers:
+        - name: fetch-wallpaper
+          image: curlimages/curl:8.10.1
+          command: ["sh","-c"]
+          args:
+            - >
+              set -eux;
+              mkdir -p /images;
+              curl -L --fail --connect-timeout 10
+              "https://i.pinimg.com/1200x/82/04/0c/82040c50e8c2d8dfe1485a5eb8450419.jpg"
+              -o /images/stargate.jpg
+          volumeMounts:
+            - name: wallpaper
+              mountPath: /images
+      containers:
+        - name: homepage
+          image: ghcr.io/gethomepage/homepage:v0.9.12
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HOMEPAGE_ALLOWED_HOSTS
+              value: homepage.kbtech.org,www.homepage.kbtech.org
+            - name: TZ
+              value: America/Chicago
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: homepage-config
+              mountPath: /app/config
+            - name: logs
+              mountPath: /app/config/logs
+            - name: wallpaper
+              mountPath: /app/public/images   # /images/* served from here
+          readinessProbe:
+            httpGet: { path: "/", port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: "/", port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: homepage-config
+          configMap:
+            name: homepage-config
+        - name: logs
+          emptyDir: {}
+        - name: wallpaper
+          emptyDir: {}   # recreated each pod start
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: homepage
+  namespace: homepage-server
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  entryPoints: [websecure]
+  routes:
+    - match: Host(`homepage.kbtech.org`) || Host(`www.homepage.kbtech.org`)
+      kind: Rule
+      services:
+        - name: homepage
+          port: 3000
+  tls:
+    secretName: kbtech-tls
