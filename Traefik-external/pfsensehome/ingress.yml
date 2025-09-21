@@ -14,6 +14,7 @@ spec:
     - name: http
       port: 80
       targetPort: 80
+  # no selector on purpose – endpoints are defined manually
 ---
 apiVersion: v1
 kind: Endpoints
@@ -22,7 +23,7 @@ metadata:
   namespace: pfsensehome
 subsets:
   - addresses:
-      - ip: 192.168.2.254        # <-- pfSense IP
+      - ip: 192.168.2.254           # pfSense LAN/WAN IP reachable from cluster
     ports:
       - name: http
         port: 80
@@ -42,8 +43,20 @@ spec:
     stsPreload: true
     stsSeconds: 15552000
     customFrameOptionsValue: SAMEORIGIN
+    # Traefik already sets X-Forwarded-* automatically, but this is harmless:
     customRequestHeaders:
-      X-Forwarded-Proto: "https"   # so pfSense knows original scheme
+      X-Forwarded-Proto: "https"
+---
+# Optional: lock access down to your home public IP
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: allow-home
+  namespace: pfsensehome
+spec:
+  ipAllowList:
+    sourcerange:
+      - YOUR.PUBLIC.IP/32        # replace with your real public IP
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -60,10 +73,12 @@ spec:
       kind: Rule
       middlewares:
         - name: default-headers
+        # add this line if you want the IP restriction:
+        # - name: allow-home
       services:
         - name: pfsensehome
           port: 80
-          scheme: http            # explicit since upstream is plain HTTP
+          scheme: http
           passHostHeader: true
   tls:
-    secretName: kbtech-tls         # must exist in namespace pfsensehome
+    secretName: kbtech-tls  # must exist in namespace pfsensehome
