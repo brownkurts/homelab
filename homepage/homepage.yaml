@@ -14,7 +14,7 @@ data:
     theme: dark
     # Background via full URL (easiest). Replace with your own Stargate ship image:
     background:
-      image: https://images.unsplash.com/photo-1502790671504-542ad42d5189?auto=format&fit=crop&w=2560&q=80
+      image: https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.pinterest.com%2Fpin%2Fgray-spaceship-stargate-stargate-sg1-hd-wallpaper--630363279079977685%2F&psig=AOvVaw0qqCvxfWKXQ9oEiLnyFa60&ust=1758552741054000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCPDZn9CN6o8DFQAAAAAdAAAAABAE
       blur: md
       brightness: 75
       opacity: 60
