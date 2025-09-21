@@ -55,13 +55,13 @@ spec:
               value: "7575"
             - name: NEXTAUTH_URL
               value: https://homarr.kbtech.org
-            - name: REDIS_IS_EXTERNAL
-              value: "true"
-            - name: REDIS_HOST
-              value: redis
-            - name: REDIS_PORT
-              value: "6379"
-          envFrom:
+          #   - name: REDIS_IS_EXTERNAL
+          #     value: "true"
+          #   - name: REDIS_HOST
+          #     value: redis
+          #   - name: REDIS_PORT
+          #     value: "6379"
+          # envFrom:
             - secretRef:
                 name: homarr-secrets
           ports:
