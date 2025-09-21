@@ -197,7 +197,7 @@ spec:
               mountPath: /images
       containers:
         - name: homepage
-          image: ghcr.io/gethomepage/homepage:v0.9.12
+          image: ghcr.io/gethomepage/homepage:v1.4.6
           imagePullPolicy: IfNotPresent
           env:
             - name: HOMEPAGE_ALLOWED_HOSTS
