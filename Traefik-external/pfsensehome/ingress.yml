@@ -9,7 +9,7 @@ metadata:
   name: pfsensehome
   namespace: pfsensehome
 spec:
-  type: ClusterIP
+  type: ExternalName
   ports:
     - name: https
       port: 443
