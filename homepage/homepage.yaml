@@ -27,58 +27,117 @@ data:
     quicklaunch:
       searchDescriptions: true
 
+  # Add/adjust hosts below. siteMonitor should be a URL the pod can reach without auth.
   services.yaml: |
     - Network:
         - pfSense (HQ):
             href: https://pfsensehome.kbtech.org
             icon: pfsense
+            siteMonitor: https://pfsensehome.kbtech.org
         - pfSense (NOC):
             href: https://pfsensenoc.kbtech.org
             icon: pfsense
+            siteMonitor: https://pfsensenoc.kbtech.org
+        - Pi-hole 1:
+            href: https://CHANGEME-pihole1.kbtech.org
+            icon: pi-hole
+            siteMonitor: https://CHANGEME-pihole1.kbtech.org/admin
+        - Pi-hole 2:
+            href: https://CHANGEME-pihole2.kbtech.org
+            icon: pi-hole
+            siteMonitor: https://CHANGEME-pihole2.kbtech.org/admin
+        - Pi-hole 3:
+            href: https://CHANGEME-pihole3.kbtech.org
+            icon: pi-hole
+            siteMonitor: https://CHANGEME-pihole3.kbtech.org/admin
+        - Pi-hole 4:
+            href: https://CHANGEME-pihole4.kbtech.org
+            icon: pi-hole
+            siteMonitor: https://CHANGEME-pihole4.kbtech.org/admin
 
     - Infrastructure:
         - Proxmox (HQ):
             href: https://proxmox.kbtech.org
             icon: proxmox
+            siteMonitor: https://proxmox.kbtech.org
         - Proxmox (NOC):
             href: https://proxmox-noc.kbtech.org
             icon: proxmox
+            siteMonitor: https://proxmox-noc.kbtech.org
         - Proxmox (Moms):
             href: https://pvemoms.kbtech.org
             icon: proxmox
+            siteMonitor: https://pvemoms.kbtech.org
+        - Proxmox Backup Server:
+            href: https://pbs-noc.kbtech.org
+            icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/proxmox-backup-server.png
+            siteMonitor: https://pbs-noc.kbtech.org
+        - Proxmox Datacenter Manager:
+            href: https://proxmox.kbtech.org/#v1:0:datacenter
+            icon: proxmox
+            siteMonitor: https://proxmox.kbtech.org
         - Unraid:
             href: https://unraid.kbtech.org
             icon: unraid
+            siteMonitor: https://unraid.kbtech.org
         - Tactical RMM:
             href: https://rmm.kbtech.org
             icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/tacticalrmm.png
+            siteMonitor: https://rmm.kbtech.org
+        - UniFi:
+            href: https://unifi.kbtech.org
+            icon: unifi
+            siteMonitor: https://unifi.kbtech.org
+        - Kasm:
+            href: https://kasm.kbtech.org
+            icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/kasm.png
+            siteMonitor: https://kasm.kbtech.org
 
     - Media:
         - Sonarr:
             href: https://sonarr.kbtech.org
             icon: sonarr
+            siteMonitor: https://sonarr.kbtech.org
         - Radarr:
             href: https://radarr.kbtech.org
             icon: radarr
+            siteMonitor: https://radarr.kbtech.org
         - Overseerr:
             href: https://request.kbtech.org
             icon: overseerr
+            siteMonitor: https://request.kbtech.org
 
     - Home:
         - Home Assistant:
             href: https://homeassistant.kbtech.org
             icon: home-assistant
+            siteMonitor: https://homeassistant.kbtech.org
 
     - Cameras:
         - Blue Iris:
             href: https://blue.kbtech.org
             icon: blue-iris
+            siteMonitor: https://blue.kbtech.org
 
+  # Widgets shown on the right; includes Kubernetes widgets
   widgets.yaml: |
     - resources:
         cpu: true
         memory: true
         disk: true
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+        nodes:
+          show: true
+          expanded: false
+        # show one namespace section (change/add more as you like)
+        namespace:
+          name: homepage-server
+          show: true
+          expanded: false
     - datetime:
         text_size: xl
         format:
@@ -106,7 +165,7 @@ metadata:
   labels:
     app: homepage
 spec:
-  # You can scale safely; homepage is stateless.
+  # scale safely (stateless)
   replicas: 2
   selector:
     matchLabels:
@@ -116,24 +175,23 @@ spec:
       labels:
         app: homepage
     spec:
-      # Download the wallpaper before the app starts; fall back if Pinterest blocks
+      serviceAccountName: homepage   # <-- for k8s widgets
       initContainers:
         - name: fetch-wallpaper
           image: curlimages/curl:8.10.1
           command: ["sh","-c"]
-          args:
-            - >
-              set -eux;
-              mkdir -p /images;
-              UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
-              # Try Pinterest (Stargate ship). If blocked/timeouts, fall back to a neutral space image.
-              (curl -A "$UA" -L --retry 3 --fail --connect-timeout 10
-                "https://i.pinimg.com/1200x/82/04/0c/82040c50e8c2d8dfe1485a5eb8450419.jpg"
-                -o /images/stargate.jpg) \
-              || (curl -L --retry 3 --fail --connect-timeout 10
-                "https://images.unsplash.com/photo-1447433819943-74a20887a81e?auto=format&fit=crop&w=2560&q=80"
-                -o /images/stargate.jpg);
-              ls -lh /images
+          args: |
+            set -eux
+            mkdir -p /images
+            UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            # Try Pinterest (Stargate ship), fall back to a space wallpaper if blocked
+            (curl -A "$UA" -L --retry 3 --fail --connect-timeout 10 \
+              "https://i.pinimg.com/1200x/82/04/0c/82040c50e8c2d8dfe1485a5eb8450419.jpg" \
+              -o /images/stargate.jpg) \
+            || (curl -L --retry 3 --fail --connect-timeout 10 \
+              "https://images.unsplash.com/photo-1447433819943-74a20887a81e?auto=format&fit=crop&w=2560&q=80" \
+              -o /images/stargate.jpg)
+            ls -lh /images
           volumeMounts:
             - name: wallpaper
               mountPath: /images
@@ -154,9 +212,8 @@ spec:
               mountPath: /app/config
             - name: logs
               mountPath: /app/config/logs
-            # Homepage serves /images/* from /app/public/images
             - name: wallpaper
-              mountPath: /app/public/images
+              mountPath: /app/public/images   # Homepage serves /images/* from here
           readinessProbe:
             httpGet: { path: "/", port: http }
             initialDelaySeconds: 5
@@ -179,7 +236,42 @@ spec:
         - name: logs
           emptyDir: {}
         - name: wallpaper
-          emptyDir: {}   # per-pod; fine for scaling
+          emptyDir: {}   # per-pod (works with replicas)
+---
+# Read-only RBAC for Kubernetes widgets
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: homepage
+  namespace: homepage-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: homepage-readonly
+rules:
+  - apiGroups: [""]
+    resources: [pods, services, endpoints, namespaces, nodes]
+    verbs: [get, list, watch]
+  - apiGroups: ["apps"]
+    resources: [deployments, statefulsets, daemonsets, replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: ["networking.k8s.io"]
+    resources: [ingresses]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: homepage-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: homepage-readonly
+subjects:
+  - kind: ServiceAccount
+    name: homepage
+    namespace: homepage-server
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
