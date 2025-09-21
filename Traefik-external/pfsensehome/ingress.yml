@@ -14,7 +14,7 @@ spec:
     - name: https
       port: 443
       targetPort: 443
-  # no selector on purpose – endpoints are defined manually
+  # no selector – using manual Endpoints
 ---
 apiVersion: v1
 kind: Endpoints
@@ -23,11 +23,33 @@ metadata:
   namespace: pfsensehome
 subsets:
   - addresses:
-      - ip: 192.168.2.254           # pfSense LAN/WAN IP reachable from cluster
+      - ip: 192.168.2.254
     ports:
       - name: https
         port: 443
         protocol: TCP
+---
+# Option A (easy): trust pfSense cert by skipping verification
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: pfsensehome-insecure
+  namespace: pfsensehome
+spec:
+  insecureSkipVerify: true
+
+# Option B (preferred): trust pfSense CA instead of skipping verify
+# 1) create a secret with your pfSense CA PEM in this namespace:
+#    kubectl -n pfsensehome create secret generic pfsense-ca --from-file=ca.crt=/path/to/pfsense-ca.pem
+# 2) then use this ServersTransport and reference it in the IngressRoute:
+# apiVersion: traefik.io/v1alpha1
+# kind: ServersTransport
+# metadata:
+#   name: pfsensehome-ca
+#   namespace: pfsensehome
+# spec:
+#   rootCAsSecrets:
+#     - pfsense-ca
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
@@ -43,20 +65,8 @@ spec:
     stsPreload: true
     stsSeconds: 15552000
     customFrameOptionsValue: SAMEORIGIN
-    # Traefik already sets X-Forwarded-* automatically, but this is harmless:
     customRequestHeaders:
       X-Forwarded-Proto: "https"
----
-# Optional: lock access down to your home public IP
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: allow-home
-  namespace: pfsensehome
-spec:
-  ipAllowList:
-    sourcerange:
-      - YOUR.PUBLIC.IP/32        # replace with your real public IP
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -73,12 +83,11 @@ spec:
       kind: Rule
       middlewares:
         - name: default-headers
-        # add this line if you want the IP restriction:
-        # - name: allow-home
       services:
         - name: pfsensehome
           port: 443
           scheme: https
+          serversTransport: pfsensehome-insecure   # or: pfsensehome-ca
           passHostHeader: true
   tls:
-    secretName: kbtech-tls  # must exist in namespace pfsensehome
+    secretName: kbtech-tls   # must exist in namespace pfsensehome
