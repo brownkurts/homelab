@@ -46,7 +46,7 @@ spec:
               mountPath: /mnt       # mount PVC root (no subPath)
       containers:
         - name: homarr-server
-          image: ghcr.io/homarr-labs/homarr:0.15.2
+          image: ghcr.io/homarr-labs/homarr:v1.37.0
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
