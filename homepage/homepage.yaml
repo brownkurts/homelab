@@ -29,8 +29,12 @@ data:
 
   services.yaml: |
     - Network:
-        - pfSense:
+        - pfSense (HQ):
             href: https://pfsensehome.kbtech.org
+            icon: pfsense
+
+        - pfSense (NOC):
+            href: https://pfsensenoc.kbtech.org
             icon: pfsense
 
     - Infrastructure:
