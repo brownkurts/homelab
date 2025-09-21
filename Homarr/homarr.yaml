@@ -24,7 +24,7 @@ spec:
         app: homarr-server
     spec:
       nodeSelector:
-        worker: "true"                # remove if not needed
+        worker: "true"
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -33,25 +33,20 @@ spec:
       initContainers:
         - name: fix-perms
           image: busybox:1.36
-          command:
-            - sh
-            - -c
+          securityContext:
+            runAsUser: 0           # run as root so chown works
+          command: ["sh","-c"]
+          args:
             - |
+              set -eux
               mkdir -p /mnt/icons /mnt/configs /mnt/data
-              chown -R 1000:1000 /mnt
+              chown -R 1000:1000 /mnt/icons /mnt/configs /mnt/data
           volumeMounts:
             - name: homarr-content
-              mountPath: /mnt/icons
-              subPath: icons
-            - name: homarr-content
-              mountPath: /mnt/configs
-              subPath: configs
-            - name: homarr-content
-              mountPath: /mnt/data
-              subPath: data
+              mountPath: /mnt       # mount PVC root (no subPath)
       containers:
         - name: homarr-server
-          image: ghcr.io/homarr-labs/homarr:0.15.2   # pin a version; avoid 'latest'
+          image: ghcr.io/homarr-labs/homarr:0.15.2
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
@@ -64,15 +59,11 @@ spec:
             - name: http
               containerPort: 7575
           readinessProbe:
-            httpGet:
-              path: /
-              port: http
+            httpGet: { path: "/", port: http }
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /
-              port: http
+            httpGet: { path: "/", port: http }
             initialDelaySeconds: 30
             periodSeconds: 20
           volumeMounts:
