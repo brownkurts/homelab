@@ -1,52 +1,38 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: pfsensehome # change me
+  name: pfsensehome
 ---
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
-  name: pfsensehome # change me
-  namespace: pfsensehome # change me
+  name: pfsensehome
+  namespace: pfsensehome
 spec:
-  type: ExternalName
+  type: ClusterIP
   ports:
-    - name: http # change me
-      port: 80 # change me
-      targetPort: 80 # change me
-  externalName: 192.168.2.254 # change me
+    - name: http
+      port: 80
+      targetPort: 80
 ---
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
+apiVersion: v1
+kind: Endpoints
 metadata:
-  name: pfsensehome # change me
-  namespace: pfsensehome # change me
-  annotations: 
-    kubernetes.io/ingress.class: traefik-external
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`www.pfsensehome.kbtech.org`) # change me
-      kind: Rule
-      services:
-        - name: pfsensehome # change me
-          port: 80 # change me
-    - match: Host(`pfsensehome.kbtech.org`) # change me
-      kind: Rule
-      services:
-        - name: pfsensehome # change me
-          port: 80 # change me
-      middlewares:
-        - name: default-headers
-  tls:
-    secretName: kbtech-tls # change me
+  name: pfsensehome
+  namespace: pfsensehome
+subsets:
+  - addresses:
+      - ip: 192.168.2.254        # <-- pfSense IP
+    ports:
+      - name: http
+        port: 80
+        protocol: TCP
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: default-headers
-  namespace: pfsensehome # change me
+  namespace: pfsensehome
 spec:
   headers:
     browserXssFilter: true
@@ -56,5 +42,28 @@ spec:
     stsPreload: true
     stsSeconds: 15552000
     customFrameOptionsValue: SAMEORIGIN
-    custompfsensehomeHeaders:
-      X-Forwarded-Proto: https
+    customRequestHeaders:
+      X-Forwarded-Proto: "https"   # so pfSense knows original scheme
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: pfsensehome
+  namespace: pfsensehome
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`pfsensehome.kbtech.org`) || Host(`www.pfsensehome.kbtech.org`)
+      kind: Rule
+      middlewares:
+        - name: default-headers
+      services:
+        - name: pfsensehome
+          port: 80
+          scheme: http            # explicit since upstream is plain HTTP
+          passHostHeader: true
+  tls:
+    secretName: kbtech-tls         # must exist in namespace pfsensehome
