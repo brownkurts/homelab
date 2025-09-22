@@ -9,11 +9,17 @@ metadata:
   name: homepage-config
   namespace: homepage-server
 data:
+  # === REQUIRED so the app doesn't try to write it ===
+  kubernetes.yaml: |
+    mode: cluster        # use in-cluster ServiceAccount
+    ingress: true        # discover k8s Ingress
+    traefik: true        # discover Traefik IngressRoute (optional)
+
   settings.yaml: |
     title: StarGate Command
     theme: dark
     background:
-      # Hotlink-friendly image (no download needed)
+      # Use any reliable hotlink-able image. Swap this to your Stargate ship art if you like.
       image: https://images.unsplash.com/photo-1447433819943-74a20887a81e?auto=format&fit=crop&w=2560&q=80
       blur: md
       brightness: 75
@@ -28,7 +34,6 @@ data:
     quicklaunch:
       searchDescriptions: true
 
-  # Add/adjust hosts below. siteMonitor should be a URL the pod can reach without auth.
   services.yaml: |
     - Network:
         - pfSense (HQ):
@@ -124,7 +129,6 @@ data:
             icon: blue-iris
             siteMonitor: https://blue.kbtech.org
 
-  # Widgets on the right; includes Kubernetes widgets
   widgets.yaml: |
     - resources:
         cpu: true
@@ -169,14 +173,16 @@ metadata:
   labels:
     app: homepage
 spec:
-  replicas: 1                      # scaling is safe; homepage is stateless
+  replicas: 2
   selector:
-    matchLabels: { app: homepage }
+    matchLabels:
+      app: homepage
   template:
     metadata:
-      labels: { app: homepage }
+      labels:
+        app: homepage
     spec:
-      serviceAccountName: homepage
+      serviceAccountName: homepage   # <— important for kubernetes.yaml: mode: cluster
       containers:
         - name: homepage
           image: ghcr.io/gethomepage/homepage:v1.4.6
@@ -207,11 +213,12 @@ spec:
             limits:   { cpu: 500m, memory: 512Mi }
       volumes:
         - name: homepage-config
-          configMap: { name: homepage-config }
+          configMap:
+            name: homepage-config
         - name: logs
           emptyDir: {}
 ---
-# Read-only RBAC for the Kubernetes widgets
+# Read-only RBAC for Kubernetes + metrics + Traefik/Gateway discovery
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -232,6 +239,15 @@ rules:
   - apiGroups: ["networking.k8s.io"]
     resources: [ingresses]
     verbs: [get, list, watch]
+  - apiGroups: ["traefik.io"]
+    resources: [ingressroutes]
+    verbs: [get, list, watch]
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: [httproutes, gateways]
+    verbs: [get, list, watch]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: [nodes, pods]
+    verbs: [get, list]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
