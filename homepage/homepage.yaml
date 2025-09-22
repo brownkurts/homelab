@@ -39,21 +39,21 @@ data:
             icon: pfsense
             siteMonitor: https://pfsensenoc.kbtech.org
         - Pi-hole 1:
-            href: https://CHANGEME-pihole1.kbtech.org
+            href: https://pihole1.kbtech.org
             icon: pi-hole
-            siteMonitor: https://CHANGEME-pihole1.kbtech.org/admin
+            siteMonitor: https://pihole1.kbtech.org/admin
         - Pi-hole 2:
-            href: https://CHANGEME-pihole2.kbtech.org
+            href: https://pihole2.kbtech.org
             icon: pi-hole
-            siteMonitor: https://CHANGEME-pihole2.kbtech.org/admin
+            siteMonitor: https://pihole2.kbtech.org/admin
         - Pi-hole 3:
-            href: https://CHANGEME-pihole3.kbtech.org
+            href: https://pihole3.kbtech.org
             icon: pi-hole
-            siteMonitor: https://CHANGEME-pihole3.kbtech.org/admin
+            siteMonitor: https://pihole3.kbtech.org/admin
         - Pi-hole 4:
-            href: https://CHANGEME-pihole4.kbtech.org
+            href: https://pihole4.kbtech.org
             icon: pi-hole
-            siteMonitor: https://CHANGEME-pihole4.kbtech.org/admin
+            siteMonitor: https://pihole4.kbtech.org/admin
 
     - Infrastructure:
         - Proxmox (HQ):
