@@ -56,6 +56,11 @@ data:
             siteMonitor: https://pihole4.kbtech.org/admin
 
     - Infrastructure:
+        - Rancher:
+            href: https://rancher.kbtech.org
+            icon: rancher
+            siteMonitor: https://rancher.kbtech.org
+
         - Proxmox (HQ):
             href: https://proxmox.kbtech.org
             icon: proxmox
