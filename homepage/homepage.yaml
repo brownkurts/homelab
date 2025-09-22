@@ -169,7 +169,7 @@ metadata:
   labels:
     app: homepage
 spec:
-  replicas: 2                      # scaling is safe; homepage is stateless
+  replicas: 1                      # scaling is safe; homepage is stateless
   selector:
     matchLabels: { app: homepage }
   template:
