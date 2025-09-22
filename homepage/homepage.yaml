@@ -50,19 +50,19 @@ data:
             icon: pfsense
             siteMonitor: https://pfsensenoc.kbtech.org
         - Pi-hole 1:
-            href: https://pihole1.kbtech.org
+            href: https://pihole1.kbtech.org/admin/login
             icon: pi-hole
             siteMonitor: https://pihole1.kbtech.org/admin
         - Pi-hole 2:
-            href: https://pihole2.kbtech.org
+            href: https://pihole2.kbtech.org/admin/login
             icon: pi-hole
             siteMonitor: https://pihole2.kbtech.org/admin
         - Pi-hole 3:
-            href: https://pihole3.kbtech.org
+            href: https://pihole3.kbtech.org/admin/login
             icon: pi-hole
             siteMonitor: https://pihole3.kbtech.org/admin
         - Pi-hole 4:
-            href: https://pihole4.kbtech.org
+            href: https://pihole4.kbtech.org/admin/login
             icon: pi-hole
             siteMonitor: https://pihole4.kbtech.org/admin
 
