@@ -13,7 +13,8 @@ data:
     title: StarGate Command
     theme: dark
     background:
-      image: /images/stargate.jpg   # served locally by the pod
+      # Hotlink-friendly image (no download needed)
+      image: https://images.unsplash.com/photo-1447433819943-74a20887a81e?auto=format&fit=crop&w=2560&q=80
       blur: md
       brightness: 75
       opacity: 60
@@ -60,7 +61,6 @@ data:
             href: https://rancher.kbtech.org
             icon: rancher
             siteMonitor: https://rancher.kbtech.org
-
         - Proxmox (HQ):
             href: https://proxmox.kbtech.org
             icon: proxmox
@@ -124,7 +124,7 @@ data:
             icon: blue-iris
             siteMonitor: https://blue.kbtech.org
 
-  # Widgets shown on the right; includes Kubernetes widgets
+  # Widgets on the right; includes Kubernetes widgets
   widgets.yaml: |
     - resources:
         cpu: true
@@ -138,7 +138,6 @@ data:
         nodes:
           show: true
           expanded: false
-        # show one namespace section (change/add more as you like)
         namespace:
           name: homepage-server
           show: true
@@ -170,33 +169,14 @@ metadata:
   labels:
     app: homepage
 spec:
-  replicas: 2                      # scaling is safe; homepage is stateless
+  replicas: 2
   selector:
     matchLabels: { app: homepage }
   template:
     metadata:
       labels: { app: homepage }
     spec:
-      initContainers:
-        - name: fetch-wallpaper
-          image: curlimages/curl:8.10.1
-          command: ["sh","-c"]
-          args: |
-            set -eux
-            mkdir -p /images
-            UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            # try pinterest; then unsplash; then create a tiny placeholder and succeed
-            curl -A "$UA" -L --retry 2 --retry-all-errors --max-time 30 --connect-timeout 8 \
-              "https://i.pinimg.com/1200x/82/04/0c/82040c50e8c2d8dfe1485a5eb8450419.jpg" \
-              -o /images/stargate.jpg \
-            || curl -L --retry 2 --retry-all-errors --max-time 30 --connect-timeout 8 \
-              "https://images.unsplash.com/photo-1447433819943-74a20887a81e?auto=format&fit=crop&w=2560&q=80" \
-              -o /images/stargate.jpg \
-            || { echo "wallpaper fetch failed; creating placeholder"; dd if=/dev/zero of=/images/stargate.jpg bs=1 count=1; }
-            ls -lh /images
-          volumeMounts:
-            - name: wallpaper
-              mountPath: /images
+      serviceAccountName: homepage
       containers:
         - name: homepage
           image: ghcr.io/gethomepage/homepage:v1.4.6
@@ -214,8 +194,6 @@ spec:
               mountPath: /app/config
             - name: logs
               mountPath: /app/config/logs
-            - name: wallpaper
-              mountPath: /app/public/images    # Homepage serves /images/* from here
           readinessProbe:
             httpGet: { path: "/", port: http }
             initialDelaySeconds: 5
@@ -232,11 +210,8 @@ spec:
           configMap: { name: homepage-config }
         - name: logs
           emptyDir: {}
-        - name: wallpaper
-          emptyDir: {}
-
 ---
-# Read-only RBAC for Kubernetes widgets
+# Read-only RBAC for the Kubernetes widgets
 apiVersion: v1
 kind: ServiceAccount
 metadata:
