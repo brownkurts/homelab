@@ -1,11 +1,12 @@
 defaultNamespace: kasm
 
+# apps/kasm/fleet.yaml  (only the relevant helm bits shown)
 helm:
   releaseName: kasm
-  # NOTE the double slash to the chart subdir and the .git suffix.
   chart: git::https://github.com/kasmtech/kasm-helm.git//kasm-single-zone?ref=release/1.17.0
   values:
     global:
-      hostname: kasm.kbtech.org   # <- your DNS; ONLY set hostname here
-  atomic: true
+      hostname: kasm.kbtech.org
+  timeoutSeconds: 900
   waitForJobs: true
+  # atomic: true   # leave off for the first successful install
