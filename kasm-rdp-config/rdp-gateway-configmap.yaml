@@ -1,27 +1,27 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: rdp-gateway-configmap
-  namespace: kasm
-data:
-  passthrough.app.config.yaml: |
-    rdp-gateway:
-      server_address: 0.0.0.0
-      server_port: 443
-      proxy_port: 3389
-      zone: default
-      registration_token: YOUR_REGISTRATION_TOKEN
-      number_of_threads: 10
-      kasm_delete_session_watch_interval: 60
-      forward_logs_to_manager: true
-      keepalive_loop_interval: 30
-    api:
-      auth_token: YOUR_MANAGER_JWT
-      public_jwt_cert: |
-        -----BEGIN CERTIFICATE-----
-        …your PEM…
-        -----END CERTIFICATE-----
-      hostnames: [ "kasm.kbtech.org" ]
-      port: 443
-      hostname_refresh_interval: 30
-      schema: https
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: rdp-gateway-configmap
+#   namespace: kasm
+# data:
+#   passthrough.app.config.yaml: |
+#     rdp-gateway:
+#       server_address: 0.0.0.0
+#       server_port: 443
+#       proxy_port: 3389
+#       zone: default
+#       registration_token: YOUR_REGISTRATION_TOKEN
+#       number_of_threads: 10
+#       kasm_delete_session_watch_interval: 60
+#       forward_logs_to_manager: true
+#       keepalive_loop_interval: 30
+#     api:
+#       auth_token: YOUR_MANAGER_JWT
+#       public_jwt_cert: |
+#         -----BEGIN CERTIFICATE-----
+#         …your PEM…
+#         -----END CERTIFICATE-----
+#       hostnames: [ "kasm.kbtech.org" ]
+#       port: 443
+#       hostname_refresh_interval: 30
+#       schema: https

@@ -1,10 +1,10 @@
-defaultNamespace: kasm
-kustomize:
-  dir: .
-dependsOn:       # wait until Helm release `kasm` is ready
-  - selector: { app: kasm }
-targets:
-- name: kasm-rdp-config
-  selector:
-    matchLabels:
-      app: kasm-rdp-config
+# defaultNamespace: kasm
+# kustomize:
+#   dir: .
+# dependsOn:   
+#   - selector: { app: kasm }
+# targets:
+# - name: kasm-rdp-config
+#   selector:
+#     matchLabels:
+#       app: kasm-rdp-config
