@@ -9,7 +9,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`guac.example.com`)   # <-- change to your FQDN
+    - match: Host(`remote.kbtech.org`)   # <-- change to your FQDN
       kind: Rule
       services:
         - name: guacamole
