@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: guacamole-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: guacamole-server
+  name: guacamole-server
+  namespace: guacamole-server
+spec:
+  selector:
+    matchLabels:
+      app: guacamole-server
+  replicas: 1
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: guacamole-server
+    spec:
+      nodeSelector:
+        worker: "true"
+      containers:
+      - image: 	guacamole/guacamole:latest
+        imagePullPolicy: Always
+        name: guacamole-server
+        volumeMounts:
+        - mountPath: /data
+          name: guacamole-content
+
+      volumes:
+      - name: guacamole-content
+        persistentVolumeClaim:
+          claimName: guacamole-claim
+
