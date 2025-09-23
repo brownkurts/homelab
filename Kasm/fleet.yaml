@@ -2,10 +2,10 @@ defaultNamespace: kasm
 
 helm:
   releaseName: kasm
-  chart: git::https://github.com/kasmtech/kasm-helm//kasm-single-zone?ref=release/1.17.0
+  # NOTE the double slash to the chart subdir and the .git suffix.
+  chart: git::https://github.com/kasmtech/kasm-helm.git//kasm-single-zone?ref=release/1.17.0
   values:
     global:
-      # Required: public hostname for TLS + ingress URL
-      hostname: kasm.kbtech.org
+      hostname: kasm.kbtech.org   # <- your DNS; ONLY set hostname here
   atomic: true
   waitForJobs: true
