@@ -1,41 +1,172 @@
 apiVersion: v1
-kind: Namespace
+kind: Secret
 metadata:
-  name: guacamole-server
+  name: guacamole-mysql-secret
+  namespace: guacamole
+type: Opaque
+stringData:
+  # CHANGE THESE
+  mysql-root-password: "super-secure-root"
+  mysql-user-password: "super-secure-user"
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  labels:
-    app: guacamole-server
-  name: guacamole-server
-  namespace: guacamole-server
+  name: guacd
+  namespace: guacamole
 spec:
+  replicas: 1
   selector:
     matchLabels:
-      app: guacamole-server
-  replicas: 1
-  progressDeadlineSeconds: 600
-  revisionHistoryLimit: 2
-  strategy:
-    type: Recreate
+      app: guacd
   template:
     metadata:
       labels:
-        app: guacamole-server
+        app: guacd
     spec:
       nodeSelector:
         worker: "true"
       containers:
-      - image: 	guacamole/guacamole:latest
-        imagePullPolicy: Always
-        name: guacamole-server
-        volumeMounts:
-        - mountPath: /data
-          name: guacamole-content
-
+        - name: guacd
+          image: guacamole/guacd:latest
+          ports:
+            - containerPort: 4822
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guac-mariadb
+  namespace: guacamole
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guac-mariadb
+  template:
+    metadata:
+      labels:
+        app: guac-mariadb
+    spec:
+      nodeSelector:
+        worker: "true"
+      containers:
+        - name: mariadb
+          image: mariadb:11
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_DATABASE
+              value: guacamole_db
+            - name: MYSQL_USER
+              value: guacamole_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-mysql-secret
+                  key: mysql-user-password
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-mysql-secret
+                  key: mysql-root-password
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command: ["sh","-c","mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
       volumes:
-      - name: guacamole-content
-        persistentVolumeClaim:
-          claimName: guacamole-claim
-
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: guac-mariadb-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacamole
+  namespace: guacamole
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guacamole
+  template:
+    metadata:
+      labels:
+        app: guacamole
+    spec:
+      nodeSelector:
+        worker: "true"
+      # Two initContainers:
+      # 1) Extract Guacamole SQL schema from the guacamole image into a shared /init volume
+      # 2) Wait for DB, then apply schema idempotently
+      initContainers:
+        - name: extract-schema
+          image: guacamole/guacamole:latest
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              cat /opt/guacamole/mysql/schema/*.sql > /init/initdb.sql
+          volumeMounts:
+            - name: guac-init
+              mountPath: /init
+        - name: init-db
+          image: mysql:8
+          env:
+            - name: MYSQL_HOSTNAME
+              value: guac-mariadb
+            - name: MYSQL_DATABASE
+              value: guacamole_db
+            - name: MYSQL_USER
+              value: guacamole_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-mysql-secret
+                  key: mysql-user-password
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              set -e
+              until mysqladmin ping -h "$MYSQL_HOSTNAME" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent; do
+                echo "Waiting for MariaDB..."
+                sleep 3
+              done
+              echo "Applying Guacamole schema (safe if already applied)..."
+              mysql -h "$MYSQL_HOSTNAME" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < /init/initdb.sql || true
+              echo "Schema step done."
+          volumeMounts:
+            - name: guac-init
+              mountPath: /init
+      containers:
+        - name: guacamole
+          image: guacamole/guacamole:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: GUACD_HOSTNAME
+              value: guacd
+            - name: MYSQL_HOSTNAME
+              value: guac-mariadb
+            - name: MYSQL_DATABASE
+              value: guacamole_db
+            - name: MYSQL_USER
+              value: guacamole_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: guacamole-mysql-secret
+                  key: mysql-user-password
+          volumeMounts:
+            - name: guac-content
+              mountPath: /guacamole/extensions   # optional future use
+            - name: guac-content
+              mountPath: /guacamole/branding     # optional future use
+      volumes:
+        - name: guac-init
+          emptyDir: {}
+        - name: guac-content
+          persistentVolumeClaim:
+            claimName: guacamole-content

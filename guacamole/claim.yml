@@ -1,12 +1,32 @@
-kind: PersistentVolumeClaim
 apiVersion: v1
+kind: Namespace
 metadata:
-  name: guacamole-claim
-  namespace: guacamole-server
+  name: guacamole
+---
+# DB data volume
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: guac-mariadb-data
+  namespace: guacamole
 spec:
-  storageClassName: longhorn
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+    storageClassName: longhorn   
+---
+# (Optional) place to persist Guacamole custom extensions/themes if you use them later
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: guacamole-content
+  namespace: guacamole
+spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
+    storageClassName: longhorn
