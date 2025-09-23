@@ -1,0 +1,41 @@
+# This directory is a Fleet bundle.
+# Fleet will fetch the Helm chart from Git and install it with these values.
+# Docs: fleet.yaml / helm.chart supports go-getter Git URLs.  :contentReference[oaicite:2]{index=2}
+defaultNamespace: kasm
+
+helm:
+  releaseName: kasm
+  # Pull the official chart FROM GIT (go-getter URL).
+  # You can pin to a tag/branch/commit with ?ref=...
+  chart: git::https://github.com/kasmtech/kasm-helm//kasm-single-zone?ref=release/1.17.0
+
+  # Values passed to the chart
+  values:
+    global:
+      hostname: kasm.kbtech.org        # <-- set your DNS name
+      storageClassName: longhorn       # <-- change if you use Ceph, etc.
+      image:
+        pullPolicy: IfNotPresent
+
+    ingress:
+      enabled: true
+      className: traefik-external      # matches your setup
+      annotations:
+        kubernetes.io/ingress.class: traefik-external
+      tls:
+        enabled: true
+        secretName: kbtech-tls         # <-- this Secret must exist in "kasm" ns
+      hosts:
+        - host: kasm.kbtech.org
+          paths:
+            - path: /
+              pathType: Prefix
+
+    postgres:
+      storage:
+        size: 20Gi
+
+  # Optional: make installs more robust
+  takeOwnership: false
+  atomic: true
+  waitForJobs: true
