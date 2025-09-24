@@ -1,33 +1,19 @@
-# unifi-combined.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: unifi
 ---
-# PVC (Longhorn example) - adjust storageClassName and size as needed
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: unifi-data
-  namespace: unifi
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: longhorn   # <--- change if you use another SC
-  resources:
-    requests:
-      storage: 50Gi
----
-# Deployment using hostNetwork for L2 discovery to function properly
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: unifi-controller
-  namespace: unifi
   labels:
     app: unifi-controller
+    app.kubernetes.io/instance: unifi-controller
+  name: unifi-controller
+  namespace: unifi-controller
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: unifi-controller
@@ -36,94 +22,136 @@ spec:
       labels:
         app: unifi-controller
     spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
-      securityContext:
-        runAsUser: 1000
-        fsGroup: 1000
+      nodeSelector:
+        worker: "true"
       containers:
-        - name: unifi
-          # change image to the one you prefer (linuxserver/jacobalberty/other)
-          image: lscr.io/linuxserver/unifi:latest
+        - image: docker.io/mongo:7.0
           imagePullPolicy: IfNotPresent
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "America/Chicago"
-          volumeMounts:
-            - name: unifi-storage
-              mountPath: /config
+          name: unifi-db
+          args: ["--dbpath", "/data/db"]
+          livenessProbe:
+            exec:
+              command:
+                - mongo
+                - --disableImplicitSessions
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - mongo
+                - --disableImplicitSessions
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
           ports:
-            - name: ui
-              containerPort: 8443
+            - containerPort: 27017
+              name: mongo
               protocol: TCP
-            - name: inform
-              containerPort: 8080
+          volumeMounts:
+            - mountPath: /data/db
+              name: unifi-db
+            - name: "init-database"
+              mountPath: "/docker-entrypoint-initdb.d/"
+        - image: lscr.io/linuxserver/unifi-network-application:8.1.113-ls36
+          imagePullPolicy: IfNotPresent
+          name: unifi-controller
+          envFrom:
+            - secretRef:
+                name: unifi-env
+          env:
+            - name: MONGO_HOST
+              value: "localhost"
+            - name: MONGO_PORT
+              value: "27017"
+          volumeMounts:
+            - mountPath: /config
+              name: unifi-config
+          ports:
+            - containerPort: 8443
+              name: web
               protocol: TCP
-            - name: http-portal
-              containerPort: 8880
-              protocol: TCP
-            - name: https-portal
-              containerPort: 8843
-              protocol: TCP
-            - name: stun
-              containerPort: 3478
+            - containerPort: 3478
+              name: stun
               protocol: UDP
-            - name: discovery
-              containerPort: 10001
+            - containerPort: 1001
+              name: discovery
               protocol: UDP
+            - containerPort: 8080
+              name: communication
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 2
+              memory: 1Gi
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            tcpSocket:
+              port: communication
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /
+              port: web
+            initialDelaySeconds: 30
+            periodSeconds: 10
       volumes:
-        - name: unifi-storage
+        - name: unifi-db
           persistentVolumeClaim:
-            claimName: unifi-data
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                      - unifi-controller
-              topologyKey: "kubernetes.io/hostname"
+            claimName: unifi-db
+        - name: unifi-config
+          persistentVolumeClaim:
+            claimName: unifi-config
+        - name: "init-database"
+          configMap:
+            name: create-db-configmap
 ---
-# Service type LoadBalancer -> MetalLB will allocate an IP and announce it
 apiVersion: v1
 kind: Service
 metadata:
-  name: unifi-lb
-  namespace: unifi
-  labels:
-    app: unifi-controller
+  name: unifi-tcp
+  namespace: unifi-controller
   annotations:
-    # optional: request a specific MetalLB address pool (replace 'my-pool' with your pool name)
-    metallb.universe.tf/address-pool: my-pool
+    metallb.universe.tf/allow-shared-ip: unifi-controller
 spec:
-  selector:
-    app: unifi-controller
   type: LoadBalancer
-  externalTrafficPolicy: Local   # important: preserves client source IPs and routes only to nodes with endpoints
-  loadBalancerIP: 192.168.201.62   # optional: uncomment to request a specific IP (must be in your MetalLB pool)
+  loadBalancerIP: 192.168.201.62 # MUST match loadBalancerIP of the other service. Choose a availible IP in your MetalLB Range
   ports:
-    - name: controller-ui
+    - name: web
       protocol: TCP
       port: 8443
       targetPort: 8443
-    - name: device-inform
+    - name: communication
       protocol: TCP
       port: 8080
       targetPort: 8080
-    - name: http-portal
-      protocol: TCP
-      port: 8880
-      targetPort: 8880
-    - name: https-portal
-      protocol: TCP
-      port: 8843
-      targetPort: 8843
+  selector:
+    app: unifi-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unifi-udp
+  namespace: unifi-controller
+  annotations:
+    metallb.universe.tf/allow-shared-ip: unifi-controller
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.201.62 # MUST match loadBalancerIP of the other service. Choose a availible IP in your MetalLB Range
+  ports:
     - name: stun
       protocol: UDP
       port: 3478
@@ -132,25 +160,5 @@ spec:
       protocol: UDP
       port: 10001
       targetPort: 10001
----
-# Optional Ingress snippet (for exposing 8443 via your Ingress controller if you prefer TLS termination there)
-# Note: If you use the LoadBalancer IP directly, you can skip this ingress.
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: unifi-ingress
-  namespace: unifi
-  annotations:
-    kubernetes.io/ingress.class: "traefik"   # change to your ingress class
-spec:
-  rules:
-    - host: unifi.kbtech.org
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: unifi-lb
-                port:
-                  number: 8443
+  selector:
+    app: unifi-controller
