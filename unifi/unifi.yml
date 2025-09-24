@@ -144,7 +144,7 @@ metadata:
     kubernetes.io/ingress.class: "traefik"   # change to your ingress class
 spec:
   rules:
-    - host: unifi.example.org
+    - host: unifi.kbtech.org
       http:
         paths:
           - path: /
