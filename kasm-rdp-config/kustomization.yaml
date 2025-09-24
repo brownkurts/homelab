@@ -1,6 +1,6 @@
-# apiVersion: kustomize.config.k8s.io/v1beta1
-# kind: Kustomization
-# resources:
-#   - rdp-gateway-configmap.yaml
-# commonLabels:
-#   app: kasm-rdp-config
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - rdp-gateway-configmap.yaml
+commonLabels:
+  app: kasm-rdp-config
