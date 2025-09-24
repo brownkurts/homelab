@@ -1,0 +1,156 @@
+# unifi-combined.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: unifi
+---
+# PVC (Longhorn example) - adjust storageClassName and size as needed
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: unifi-data
+  namespace: unifi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn   # <--- change if you use another SC
+  resources:
+    requests:
+      storage: 50Gi
+---
+# Deployment using hostNetwork for L2 discovery to function properly
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unifi-controller
+  namespace: unifi
+  labels:
+    app: unifi-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unifi-controller
+  template:
+    metadata:
+      labels:
+        app: unifi-controller
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: unifi
+          # change image to the one you prefer (linuxserver/jacobalberty/other)
+          image: lscr.io/linuxserver/unifi:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Chicago"
+          volumeMounts:
+            - name: unifi-storage
+              mountPath: /config
+          ports:
+            - name: ui
+              containerPort: 8443
+              protocol: TCP
+            - name: inform
+              containerPort: 8080
+              protocol: TCP
+            - name: http-portal
+              containerPort: 8880
+              protocol: TCP
+            - name: https-portal
+              containerPort: 8843
+              protocol: TCP
+            - name: stun
+              containerPort: 3478
+              protocol: UDP
+            - name: discovery
+              containerPort: 10001
+              protocol: UDP
+      volumes:
+        - name: unifi-storage
+          persistentVolumeClaim:
+            claimName: unifi-data
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - unifi-controller
+              topologyKey: "kubernetes.io/hostname"
+---
+# Service type LoadBalancer -> MetalLB will allocate an IP and announce it
+apiVersion: v1
+kind: Service
+metadata:
+  name: unifi-lb
+  namespace: unifi
+  labels:
+    app: unifi-controller
+  annotations:
+    # optional: request a specific MetalLB address pool (replace 'my-pool' with your pool name)
+    metallb.universe.tf/address-pool: my-pool
+spec:
+  selector:
+    app: unifi-controller
+  type: LoadBalancer
+  externalTrafficPolicy: Local   # important: preserves client source IPs and routes only to nodes with endpoints
+  loadBalancerIP: 192.168.201.62   # optional: uncomment to request a specific IP (must be in your MetalLB pool)
+  ports:
+    - name: controller-ui
+      protocol: TCP
+      port: 8443
+      targetPort: 8443
+    - name: device-inform
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+    - name: http-portal
+      protocol: TCP
+      port: 8880
+      targetPort: 8880
+    - name: https-portal
+      protocol: TCP
+      port: 8843
+      targetPort: 8843
+    - name: stun
+      protocol: UDP
+      port: 3478
+      targetPort: 3478
+    - name: discovery
+      protocol: UDP
+      port: 10001
+      targetPort: 10001
+---
+# Optional Ingress snippet (for exposing 8443 via your Ingress controller if you prefer TLS termination there)
+# Note: If you use the LoadBalancer IP directly, you can skip this ingress.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: unifi-ingress
+  namespace: unifi
+  annotations:
+    kubernetes.io/ingress.class: "traefik"   # change to your ingress class
+spec:
+  rules:
+    - host: unifi.example.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: unifi-lb
+                port:
+                  number: 8443
