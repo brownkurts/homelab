@@ -1,0 +1,12 @@
+defaultNamespace: kasm
+
+helm:
+  releaseName: kasm
+  # NOTE the ".git" and the DOUBLE SLASH before the subdir
+  chart: git::https://github.com/kasmtech/kasm-helm.git//kasm-single-zone?ref=release/1.17.0
+  values:
+    global:
+      hostname: kasm.kbtech.org   # <— only this; remove any other values
+  timeoutSeconds: 900
+  waitForJobs: true
+  # atomic: true   # enable later after first successful install
